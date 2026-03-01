@@ -7,7 +7,7 @@ export async function loadModel() {
 
   console.log("Initializing WebLLM...");
 
-  const modelId = "Llama-3.2-1B-Instruct-q4f32_1-MLC";
+  const modelId = "Qwen2.5-Coder-1.5B-Instruct-q4f32_1-MLC";
 
   engine = await webllm.CreateMLCEngine(modelId);
 
@@ -19,8 +19,16 @@ export async function generateText(prompt) {
   const model = await loadModel();
 
   const reply = await model.chat.completions.create({
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: 50,
+    messages: [
+  {
+    role: "system",
+    content:
+      "You are an expert programming assistant. Always return complete, syntactically correct, production-ready code. Ensure brackets are balanced and functions are fully implemented."
+  },
+  { role: "user", content: prompt }
+],
+    max_tokens: 300,
+    temperature: 0.2,
   });
 
   return reply.choices[0].message.content;
