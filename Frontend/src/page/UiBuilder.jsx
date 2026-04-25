@@ -6,6 +6,10 @@ import Connection from "../components/Connection";
 import * as htmlToImage from "html-to-image";
 import AiChatBox from "../components/AiChatBox";
 import { generateUI } from "../ai/generateUI";
+import Render from "../builder/Render";
+import { applyOperation } from "../builder/uiState";
+import { dispatchOperation } from "../collab/dispatcher";
+
 let idCounter = 1;
 
 function UiBuilder() {
@@ -72,6 +76,16 @@ function UiBuilder() {
   const [loading, setLoading] = useState(false);
 
   const [copiedElements, setCopiedElements] = useState([]);
+
+  const [uiTree, setUiTree] = useState([]);
+
+  function dispatch(op) {
+    dispatchOperation(op, setUiTree, applyOperation);
+  }
+
+  function handleReceiveOperation(op) {
+    applyOperation(op, setUiTree);
+  }
 
   function copyElements() {
     if (selectedIds.length === 0) return;
@@ -674,7 +688,11 @@ function UiBuilder() {
               />
             ) : (
               <div className="p-4 text-gray-500">
-                Connection panel (coming soon)
+                <Connection
+                  uiTree={uiTree}
+                  dispatch={dispatch}
+                  onReceiveOperation={handleReceiveOperation}
+                />
               </div>
             )}
           </div>

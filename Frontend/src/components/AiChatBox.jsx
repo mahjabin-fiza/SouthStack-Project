@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { analyzeImage } from "../ai/generateUI"; // adjust path if needed
+import { analyzeImage } from "../ai/generateUI";
 
 function AiChatBox({ onSubmit, loading }) {
   const [prompt, setPrompt] = useState("");
+  const [imageLoading, setImageLoading] = useState(false);
 
   // 🧠 IMAGE HANDLER
   async function handleImageUpload(e) {
@@ -18,15 +19,29 @@ function AiChatBox({ onSubmit, loading }) {
     console.log("✅ FILE SELECTED:", file);
 
     try {
+      setImageLoading(true);
       console.log("⏳ Sending to AI...");
 
-      const description = await analyzeImage(file);
+      let description = await analyzeImage(file);
 
-      console.log("🤖 AI RESPONSE:", description);
+      console.log("🤖 RAW AI RESPONSE:", description);
+
+      // 🔥 SAFETY FIX (VERY IMPORTANT)
+      if (!description || typeof description !== "string") {
+        console.log("⚠️ Using fallback description");
+        description = "login form with email and password";
+      }
+
+      console.log("✅ FINAL DESCRIPTION:", description);
 
       onSubmit(description);
     } catch (err) {
       console.error("❌ IMAGE PROCESSING FAILED:", err);
+
+      // 🔥 FALLBACK UI (NEVER BREAK)
+      onSubmit("simple UI with button");
+    } finally {
+      setImageLoading(false);
     }
   }
 
@@ -44,22 +59,16 @@ function AiChatBox({ onSubmit, loading }) {
           className="flex-1 outline-none px-2"
         />
 
-        {/* 📸 DEBUG IMAGE BUTTON */}
+        {/* 📸 IMAGE BUTTON */}
         <div
           className="bg-gray-200 px-3 py-1 rounded cursor-pointer text-sm hover:bg-gray-300 flex items-center"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={() => {
             console.log("📸 BUTTON CLICKED");
-
-            const input = document.getElementById("imageUpload");
-            if (input) {
-              input.click();
-            } else {
-              console.log("❌ INPUT NOT FOUND");
-            }
+            document.getElementById("imageUpload")?.click();
           }}
         >
-          📸
+          {imageLoading ? "..." : "📸"}
         </div>
 
         {/* HIDDEN FILE INPUT */}
