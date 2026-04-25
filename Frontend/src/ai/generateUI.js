@@ -405,3 +405,41 @@ ${prompt}
     ]);
   }
 }
+// 🧠 BASE64 HELPER
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = (error) => reject(error);
+  });
+}
+
+// 🤖 IMAGE → DESCRIPTION (LLaVA)
+export async function analyzeImage(file) {
+  const base64 = await toBase64(file);
+
+  const res = await fetch("http://localhost:11434/api/generate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llava",
+      stream: false,
+      prompt: `
+Describe the UI layout in this image.
+
+Focus on:
+- login, dashboard, or homepage
+- main elements (inputs, buttons, cards, navbar)
+
+Respond in ONE short sentence.
+      `,
+      images: [base64],
+    }),
+  });
+
+  const data = await res.json();
+  return data.response;
+}

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { analyzeImage } from "../ai/generateUI"; // ⚠️ adjust path if needed
+import { analyzeImage } from "../ai/generateUI"; // adjust path if needed
 
 function AiChatBox({ onSubmit, loading }) {
   const [prompt, setPrompt] = useState("");
@@ -7,22 +7,31 @@ function AiChatBox({ onSubmit, loading }) {
   // 🧠 IMAGE HANDLER
   async function handleImageUpload(e) {
     const file = e.target.files[0];
-    if (!file) return;
+
+    console.log("📂 FILE EVENT:", e.target.files);
+
+    if (!file) {
+      console.log("❌ NO FILE SELECTED");
+      return;
+    }
+
+    console.log("✅ FILE SELECTED:", file);
 
     try {
+      console.log("⏳ Sending to AI...");
+
       const description = await analyzeImage(file);
 
-      console.log("AI Image Description:", description);
+      console.log("🤖 AI RESPONSE:", description);
 
-      // 🔥 reuse existing system
       onSubmit(description);
     } catch (err) {
-      console.error("Image processing failed:", err);
+      console.error("❌ IMAGE PROCESSING FAILED:", err);
     }
   }
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[480px] z-50">
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[550px] z-50 pointer-events-auto">
       <div className="bg-white border rounded-xl shadow-lg p-2 flex gap-2 items-center">
         {/* TEXT INPUT */}
         <input
@@ -35,20 +44,39 @@ function AiChatBox({ onSubmit, loading }) {
           className="flex-1 outline-none px-2"
         />
 
-        {/* 📸 IMAGE UPLOAD */}
+        {/* 📸 DEBUG IMAGE BUTTON */}
+        <div
+          className="bg-gray-200 px-3 py-1 rounded cursor-pointer text-sm hover:bg-gray-300 flex items-center"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={() => {
+            console.log("📸 BUTTON CLICKED");
+
+            const input = document.getElementById("imageUpload");
+            if (input) {
+              input.click();
+            } else {
+              console.log("❌ INPUT NOT FOUND");
+            }
+          }}
+        >
+          📸
+        </div>
+
+        {/* HIDDEN FILE INPUT */}
         <input
+          id="imageUpload"
           type="file"
           accept="image/*"
+          className="hidden"
           onChange={handleImageUpload}
-          onMouseDown={(e) => e.stopPropagation()}
-          className="text-xs"
         />
 
-        {/* BUTTON */}
+        {/* DONE BUTTON */}
         <button
           onMouseDown={(e) => e.stopPropagation()}
           onClick={() => {
             if (!prompt.trim()) return;
+            console.log("📝 TEXT PROMPT:", prompt);
             onSubmit(prompt);
             setPrompt("");
           }}
