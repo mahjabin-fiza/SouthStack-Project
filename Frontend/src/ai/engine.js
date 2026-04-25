@@ -1,35 +1,35 @@
 import * as webllm from "@mlc-ai/web-llm";
 
 let engine = null;
+let loadingPromise = null;
 
-export async function loadModel() {
+// CHANGE THIS PER DEVICE
+const MODEL = "Qwen2.5-Coder-0.5B-Instruct-q4f32_1-MLC";
+// const MODEL = "Qwen2.5-Coder-1.5B-Instruct-q4f32_1-MLC";
+
+async function loadModel() {
   if (engine) return engine;
+  if (loadingPromise) return loadingPromise;
 
-  console.log("Initializing WebLLM...");
+  loadingPromise = (async () => {
+    engine = await webllm.CreateMLCEngine(MODEL);
+    return engine;
+  })();
 
-  const modelId = "Qwen2.5-Coder-0.5B-Instruct-q4f32_1-MLC";
-
-  engine = await webllm.CreateMLCEngine(modelId);
-
-  console.log("Model loaded!");
-  return engine;
+  return loadingPromise;
 }
 
 export async function generateText(prompt) {
   const model = await loadModel();
 
-  const reply = await model.chat.completions.create({
+  const res = await model.chat.completions.create({
     messages: [
-      {
-        role: "system",
-        content:
-          "You are an expert programming assistant. Always return complete, syntactically correct, production-ready code. Ensure brackets are balanced and functions are fully implemented.",
-      },
+      { role: "system", content: "You are a helpful coding AI." },
       { role: "user", content: prompt },
     ],
-    max_tokens: 300,
     temperature: 0.2,
+    max_tokens: 600,
   });
 
-  return reply.choices[0].message.content;
+  return res.choices[0].message.content;
 }
