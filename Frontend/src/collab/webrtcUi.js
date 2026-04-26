@@ -1,82 +1,109 @@
-// /src/collab/webrtc.js
-
 let pc;
 let dataChannel;
+let onMessageCallback;
+let onOpenCallback;
 
-export function initConnection(onMessage, onOpen) {
+// INIT (MANDATORY)
+export function createPeer(updateStatus, _, onMessage) {
+  onMessageCallback = onMessage;
+
   pc = new RTCPeerConnection();
 
-  // receive channel (for answerer)
-  pc.ondatachannel = (event) => {
-    dataChannel = event.channel;
+  pc.onconnectionstatechange = () => {
+    console.log("🔄 Connection:", pc.connectionState);
+    updateStatus(pc.connectionState);
+  };
 
-    dataChannel.onopen = () => {
-      console.log("Connected ✅");
-      onOpen?.();
-    };
+  pc.onsignalingstatechange = () => {
+    console.log("📡 Signaling:", pc.signalingState);
+  };
 
-    dataChannel.onmessage = (e) => {
-      onMessage(JSON.parse(e.data));
-    };
+  pc.ondatachannel = (e) => {
+    dataChannel = e.channel;
+    setupChannel();
   };
 }
 
-// OFFER SIDE
-export async function createOffer(onMessage, onOpen) {
-  pc = new RTCPeerConnection();
-
-  dataChannel = pc.createDataChannel("data");
-
+// SETUP CHANNEL
+function setupChannel() {
   dataChannel.onopen = () => {
-    console.log("Connected ✅");
-    onOpen?.();
+    console.log("✅ DataChannel OPEN");
+    onOpenCallback?.();
   };
 
   dataChannel.onmessage = (e) => {
-    onMessage(JSON.parse(e.data));
+    const op = JSON.parse(e.data);
+    console.log("📥 Received:", op);
+    onMessageCallback(op);
   };
+}
+
+// OFFER
+export async function createOffer(onMessage, onOpen) {
+  if (!pc) throw new Error("❌ Call INIT first");
+
+  onMessageCallback = onMessage;
+  onOpenCallback = onOpen;
+
+  dataChannel = pc.createDataChannel("ui");
+  setupChannel();
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
-  return JSON.stringify(offer);
+  await waitIce();
+
+  console.log("📤 Offer created");
+  return pc.localDescription;
 }
 
-// ANSWER SIDE
-export async function createAnswer(offerStr, onMessage, onOpen) {
-  pc = new RTCPeerConnection();
+// ANSWER
+export async function createAnswer(offer, onMessage, onOpen) {
+  if (!pc) throw new Error("❌ Call INIT first");
 
-  pc.ondatachannel = (event) => {
-    dataChannel = event.channel;
+  onMessageCallback = onMessage;
+  onOpenCallback = onOpen;
 
-    dataChannel.onopen = () => {
-      console.log("Connected ✅");
-      onOpen?.();
-    };
-
-    dataChannel.onmessage = (e) => {
-      onMessage(JSON.parse(e.data));
-    };
-  };
-
-  const offer = JSON.parse(offerStr);
   await pc.setRemoteDescription(offer);
 
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
 
-  return JSON.stringify(answer);
+  await waitIce();
+
+  console.log("📤 Answer created");
+  return pc.localDescription;
 }
 
-// FINAL STEP
-export async function acceptAnswer(answerStr) {
-  const answer = JSON.parse(answerStr);
+// SET ANSWER (FIXED WITH GUARD)
+export async function setRemoteAnswer(answer) {
+  if (!pc) return;
+
+  if (pc.signalingState !== "have-local-offer") {
+    console.warn("⚠️ Wrong state:", pc.signalingState);
+    return;
+  }
+
   await pc.setRemoteDescription(answer);
+
+  console.log("✅ Answer accepted");
 }
 
-// SEND DATA
+// SEND
 export function sendOperation(op) {
   if (dataChannel?.readyState === "open") {
     dataChannel.send(JSON.stringify(op));
   }
+}
+
+// ICE WAIT
+function waitIce() {
+  return new Promise((resolve) => {
+    if (pc.iceGatheringState === "complete") resolve();
+    else {
+      pc.onicegatheringstatechange = () => {
+        if (pc.iceGatheringState === "complete") resolve();
+      };
+    }
+  });
 }
